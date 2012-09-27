@@ -1,0 +1,106 @@
+CADR Chaosnet README
+brad@heeltoe.com
+07/11/06
+
+Chaosnet simulator for CADR simulator
+
+Updates
+-------
+
+07/11/06 fixed FILE server to force everything to lower case
+         (still a bug in close - don't open multiple files)
+         some macos fixes, doesnt' work yet in big endian
+	 works well enough to support (si:recompile-world)
+
+12/13/05 original release
+
+What the heck is this?
+----------------------
+
+Chaosnet was an early (pre-ethernet) computer network developed at
+MIT.  It was an early "common bus" packet network, i.e. all the
+machines shared a single "wire" and sent packets back and forth.
+
+Chaosnet was used to connect many machines at MIT, most notably the
+PDP-10's running ITS and the lisp machines.  
+
+This code simulates a chaosnet network on a single machine.  There is
+a central server which clients connect to using unix sockets.  The
+server relays packets back and forth between the clients.
+
+The CADR simulator (usim) can be a client and uses this code to talk
+to the FILE server ("FILE" is the file serving protocol used on
+chaosnet).
+
+How do I use it?
+----------------
+
+The simple case is to run "chaosd" in a directory which has "server"
+and "FILE" in it.  chaosd will exec server in the background and
+server will exec FILE when a connection is made.  So just type
+"./chaosd" in the source directory.
+
+The servers are designed to run in the background and can be made to
+do so with command line argument.  I have not tested this fully,
+however and it could easily be the case that the the exec will fail
+because the programs can not be found.
+
+Once chaosd is running you can start up usim and it will connect.  You
+can watch the packet flow by running "listen".
+
+usim will automatically reconnect to the server if the server is
+killed or dies.  In theory you can start usim first.
+
+Quick Start
+-----------
+
+	run chaosd in one window
+	run usim in another
+	wait for the lispm to ask you for the date & time
+	type
+
+	  (si:set-sys-host "server" ':unix 404)
+	  (load "server://path-to-file//tv.lisp")
+	  (tv:set-tv-lines 640.)
+
+	This will change the screen to be 640 lines.
+
+What's the point?
+-----------------
+
+If you run chaosd and then usim, you can get the CADR to talk to the file
+server and read files from your linux host.
+
+Once the CADR is running type this
+
+	(si:set-sys-host "server" ':unix 404 "//tmp")
+
+Note this command will take a little while to complete.
+
+Then get into zwei (emacs) with F2-e and type ^X^F (find file) and
+then type "server:/path/to/a/text/file".  The file will appear in the
+emacs buffer.  Viola.  It's not fast but it works.
+
+At this point the system is stable enough that it can recompile the
+entire source tree.  I hope to make a cold load band soon.
+
+
+Chaosnet addressing
+-------------------
+
+in octal
+
+0401	usim
+0404	server
+
+The code currently assumes a single usim running with chaos address
+(octal) 401.  The server runs at address (octal) 404.
+
+
+Utilities
+---------
+chaosd - router daemon
+server - chaosnet server
+FILE - port of FILE server
+listen - packet dumper
+client - simple test client
