@@ -323,7 +323,7 @@ dumpmem(/*int dbg_level, */char *ptr, int len)
 }
 
 int
-read_block(int fd, int block_no, unsigned char *buf)
+read_block(int fd, int block_no, char *buf)
 {
 	off_t offset, ret;
 	int size;
@@ -349,7 +349,7 @@ read_block(int fd, int block_no, unsigned char *buf)
 }
 
 int
-write_block(int fd, int block_no, unsigned char *buf)
+write_block(int fd, int block_no, char *buf)
 {
 	off_t offset, ret;
 	int size;
@@ -600,7 +600,7 @@ show_de(int fd, int record_no)
     printf("byte_length %d\n", de->byte_length);
     printf("number_of_records %d\n", de->number_of_records);
     printf("record_0_address %d\n", de->record_0_address);
-    printf("size %d\n", sizeof(struct directory_entry_s));
+    printf("size %lo\n", sizeof(struct directory_entry_s));
 
     show_file(fd, de, de->record_0_address);
     //    show_de(fd, de->record_0_address);
@@ -612,7 +612,7 @@ int
 lmfs_open(char *img_filename, int offset)
 {
   int fd, ret;
-  u_char buffer[256*4];
+  char buffer[256*4];
   struct partition_label_s *pl;
   baccess b;
 
@@ -715,7 +715,7 @@ lmfs_open(char *img_filename, int offset)
 		 de->author);
 	  printf("number_of_records %d\n", de->number_of_records);
 	  printf("record_0_address %d\n", de->record_0_address);
-	  printf("size %d\n", sizeof(struct directory_entry_s));
+	  printf("size %lo\n", sizeof(struct directory_entry_s));
 
 	  show_de(fd, de->record_0_address);
 	}

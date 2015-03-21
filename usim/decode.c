@@ -72,7 +72,7 @@ show_prom(void)
 	int i;
 
 	for (i = 0; i < 16; i++) {
-		printf("%03o %016Lo", i, prom_ucode[i]);
+		printf("%03o %016llo", i, prom_ucode[i]);
 		printf(" %02x %02x %02x %02x %02x %02x",
 		       prom[0][i], 
 		       prom[1][i], 
@@ -84,7 +84,7 @@ show_prom(void)
 	}
 
 	for (i = 0100; i < 0110; i++) {
-		printf("%03o %016Lo", i, prom_ucode[i]);
+		printf("%03o %016llo", i, prom_ucode[i]);
 		printf(" %02x %02x %02x %02x %02x %02x",
 		       prom[0][i], 
 		       prom[1][i], 
@@ -428,7 +428,7 @@ disassemble_prom(void)
 
 		ucw_t u = prom_ucode[i];
 
-		printf("%03o %016Lo ", i, prom_ucode[i]);
+		printf("%03o %016llo ", i, prom_ucode[i]);
 
 		disassemble_ucode_loc(i, u);
 	}

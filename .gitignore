@@ -1,0 +1,10 @@
+orig/
+usim-runtime/
+*.o
+usim/usim
+usim/diskmaker
+usim/lmfs
+usim/lod
+usim/readmcr
+*.dSYM
+*.swp

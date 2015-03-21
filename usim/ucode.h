@@ -61,6 +61,7 @@ extern unsigned long cycles;
 extern unsigned long max_cycles;
 extern unsigned long max_trace_cycles;
 
+extern int sym_find(int mcr, char *name, int *pval);
 extern char *sym_find_by_val(int mcr, int v);
 extern char *sym_find_last(int mcr, int v, int *poffset);
 extern char *sym_find_by_type_val(int mcr, int t, int v);
@@ -73,4 +74,7 @@ extern int tracelabel_set_mcr(char *arg);
 
 extern int read_phy_mem(int paddr, unsigned int *pv);
 extern int write_phy_mem(int paddr, unsigned int v);
+
+extern unsigned int read_a_mem(int loc);
+
 

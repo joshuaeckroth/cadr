@@ -132,7 +132,7 @@ _sym_read_file(struct symtab_s *tab, const char *filename)
 	FILE *f;
 	char line[8*1024];
 
-	if (0) printf("tab %p, filename %s\n", tab, filename);
+	if (1) printf("tab %p, filename %s\n", tab, filename);
 
 	f = fopen(filename, "r");
 	if (f == NULL)
@@ -148,12 +148,13 @@ _sym_read_file(struct symtab_s *tab, const char *filename)
 		char sym[64], symtype[64];
 		int loc, n;
 
+		if (0) printf("_sym_read_file: '%s'\n", line);
+
 		if (first) {
-			strcpy(line, line+3);
+			memmove(line, line+3, sizeof(line)-3);
 			first = 0;
 		}
 
-		if (0) printf("'%s'\n", line);
 
 		n = sscanf(line, "%s %s %o", sym, symtype, &loc);
 		if (n == 3) {

@@ -507,7 +507,7 @@ chaos_poll(void)
 
 		if (len > sizeof(chaos_rcv_buffer)) {
 			printf("chaos: packet too big: "
-			       "pkt size %d, buffer size %d\n",
+			       "pkt size %d, buffer size %lo\n",
 			       len, sizeof(chaos_rcv_buffer));
 
 			/* When we get out of synch break socket conn */

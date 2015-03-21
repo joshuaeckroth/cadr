@@ -132,7 +132,6 @@ extern int tv_xbus_read(int offset, unsigned int *pv);
 extern int tv_xbus_write(int offset, unsigned int v);
 
 extern void disassemble_ucode_loc(int loc, ucw_t u);
-extern int sym_find(int mcr, char *name, int *pval);
 void reset_pc_histogram(void);
 
 extern void timing_start();
@@ -738,7 +737,7 @@ if ((vaddr & 077700000) == 077200000) {
 inline void
 write_ucode(int addr, ucw_t w)
 {
-	tracef("u-code write; %Lo @ %o\n", w, addr);
+	tracef("u-code write; %llo @ %o\n", w, addr);
 	ucode[addr] = w;
 }
 
@@ -1600,7 +1599,7 @@ int
 restore_state(void)
 {
 	int fd, ret, i;
-	u_char version[2];
+	unsigned char version[2];
 
 	if (restored)
 	  return 0;
@@ -1635,7 +1634,7 @@ int
 save_state(void)
 {
 	int fd, ret, i;
-	u_char version[2];
+	unsigned char version[2];
 
 	fd = open("usim.state", O_RDWR | O_CREAT, 0666);
 	if (fd < 0)
