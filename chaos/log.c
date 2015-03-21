@@ -41,7 +41,7 @@ log_init(void)
 }
 
 void
-log(int level, char *fmt, ...)
+write_log(int level, char *fmt, ...)
 {
     char string[512];
     va_list ap;

@@ -355,7 +355,7 @@ fork_file(char *arg)
 
     if (r == -1) {
         perror("fork");
-        log(LOG_WARNING, "unable to fork new process; %%m");
+        write_log(LOG_WARNING, "unable to fork new process; %%m");
         return;
     }
 
@@ -383,7 +383,7 @@ fork_file(char *arg)
     r = execl(app_name, app_name, "1", 0);
 
     if (r) {
-        log(LOG_WARNING, "can't exec %s; %%m", app_name);
+        write_log(LOG_WARNING, "can't exec %s; %%m", app_name);
     }
 
     /* should not get here unless app not executable */

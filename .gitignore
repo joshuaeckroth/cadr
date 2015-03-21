@@ -1,10 +1,17 @@
 orig/
 usim-runtime/
+chaos-runtime/
 *.o
 usim/usim
 usim/diskmaker
 usim/lmfs
 usim/lod
 usim/readmcr
+chaos/FILE
+chaos/chaosd
+chaos/client
+chaos/server
+chaos/listen
+chaos/time
 *.dSYM
 *.swp

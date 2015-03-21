@@ -1,8 +1,3 @@
-/*
- * log.h
- *
- * $Id: log.h 56 2005-12-13 20:13:39Z brad $
- */
 
 enum {
 	DBG_WARN = 1,
@@ -18,13 +13,5 @@ enum {
 	TRACE_LOW
 };
 
-void log(int level, char *fmt, ...);
-
-
-/*
- * Local Variables:
- * indent-tabs-mode:nil
- * c-basic-offset:4
- * End:
-*/
+void write_log(int level, char *fmt, ...);
 

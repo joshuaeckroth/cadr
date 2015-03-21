@@ -1,3 +1,6 @@
+#ifndef CHAOS_H
+#define CHAOS_H
+
 /*
  * chaos.h
  *
@@ -228,4 +231,6 @@ struct chiladdr {
 struct chstatname {
 	char	cn_name[CHSTATNAME];
 };
+#endif
+
 #endif

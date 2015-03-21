@@ -133,6 +133,7 @@ send_chaos(void)
     }
 }
 
+int
 main()
 {
     int waiting;
