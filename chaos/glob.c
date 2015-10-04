@@ -26,30 +26,9 @@ static char	**gargv;			/* Pointer to the (stack) arglist */
 static int	gargc;				/* Number args in gargv */
 static int	gargmax;
 static short	gflag;
-static int	tglob();
-char **glob();
 int globerr;
 char *home;
-struct passwd *getpwnam();
 extern int errno;
-char **copyblk(), **blkcpy();
-static char *strend();
-/*char *malloc(), *strcpy(), *strcat(), *sprintf();*/
-
-static void ginit();
-static collect(register char *as);
-static void acollect();
-static void sort();
-static void expand();
-static void matchdir();
-static int execbrc();
-static int match();
-static int amatch();
-static void Gcat(char *s1, char *s2);
-static void addpath();
-static void rscan(char **t, int (*f)());
-static char *strspl(char *cp, char *dp);
-
 
 static int	globcnt;
 
@@ -63,9 +42,34 @@ static char	**sortbas;
 #define STARTVEC	100
 #define INCVEC		100
 
+char ** glob(char *v);
+static void ginit();
+static void collect(char *as);
+static void acollect(char *as);
+static void sort();
+static void expand(char *as);
+static void matchdir(char *pattern);
+static int execbrc(char *p, char *s);
+static int match(char *s, char *p);
+static int amatch(char *s, char *p);
+static int Gmatch(char *s, char *p);
+static void Gcat(char *s1, char *s2);
+static void addpath(char c);
+static void rscan(char **t, int (*f)(char));
+static int tglob(char c);
+int letter(char c);
+int digit(char c);
+int any(int c, char *s);
+int blklen(char **av);
+char ** blkcpy(char **oav, char **bv);
+void blkfree(char **av0);
+static char * strspl(char *cp, char *dp);
+char ** copyblk(char **v);
+static char * strend(char *cp);
+int gethdir(char *home);
+
 char **
-glob(v)
-	register char *v;
+glob(char *v)
 {
 	char agpath[BUFSIZ];
 	char *vv[2];
@@ -99,9 +103,8 @@ ginit()
 	agargv[0] = 0; gargv = agargv; sortbas = agargv; gargc = 0;
 }
 
-static
-collect(as)
-	register char *as;
+static void
+collect(char *as)
 {
 	if (eq(as, "{") || eq(as, "{}")) {
 		Gcat(as, "");
@@ -111,10 +114,9 @@ collect(as)
 }
 
 static void
-acollect(as)
-	register char *as;
+acollect(char *as)
 {
-	register int ogargc = gargc;
+	int ogargc = gargc;
 
 	gpathp = gpath; *gpathp = 0; globbed = 0;
 	expand(as);
@@ -125,7 +127,7 @@ acollect(as)
 static void
 sort()
 {
-	register char **p1, **p2, *c;
+	char **p1, **p2, *c;
 	char **Gvp = &gargv[gargc];
 
 	p1 = sortbas;
@@ -140,11 +142,10 @@ sort()
 }
 
 static void
-expand(as)
-	char *as;
+expand(char *as)
 {
-	register char *cs;
-	register char *sgpathp, *oldcs;
+	char *cs;
+	char *sgpathp, *oldcs;
 	struct stat stb;
 
 	sgpathp = gpathp;
@@ -197,12 +198,11 @@ endit:
 }
 
 static void
-matchdir(pattern)
-	char *pattern;
+matchdir(char *pattern)
 {
 	struct stat stb;
-	register int dirf;
-	register struct direct *dp;
+	int dirf;
+	struct direct *dp;
 #if defined(BSD42) || defined(linux) || defined(OSX)
 	DIR *dirp;
 
@@ -253,9 +253,9 @@ matchdir(pattern)
 	for (dp = dirbuf, cnt /= sizeof (struct direct); cnt > 0; cnt--, dp++)
 #endif
 		if (dp->d_ino == 0 ||
-		    dp->d_name[0] == '.' &&
-		    (dp->d_name[1] == '\0' ||
-		     dp->d_name[1] == '.' && dp->d_name[2] == '\0'))
+		    (dp->d_name[0] == '.' &&
+		     (dp->d_name[1] == '\0' ||
+		      (dp->d_name[1] == '.' && dp->d_name[2] == '\0'))))
 			continue;
 		else {
 #if defined(BSD42) || defined(linux) || defined(OSX)
@@ -281,11 +281,10 @@ out:
 }
 
 static int
-execbrc(p, s)
-	char *p, *s;
+execbrc(char *p, char *s)
 {
 	char restbuf[BUFSIZ + 2];
-	register char *pe, *pm, *pl;
+	char *pe, *pm, *pl;
 	int brclev = 0;
 	char *lm, savec, *sgpathp;
 
@@ -373,11 +372,10 @@ doit:
 }
 
 static int
-match(s, p)
-	char *s, *p;
+match(char *s, char *p)
 {
-	register int c;
-	register char *sentp;
+	int c;
+	char *sentp;
 	char sglobbed = globbed;
 
 /* We don't want this "feature"
@@ -393,10 +391,9 @@ match(s, p)
 }
 
 static int
-amatch(s, p)
-	register char *s, *p;
+amatch(char *s, char *p)
 {
-	register int scc;
+	int scc;
 	int ok, lc;
 	char *sgpathp;
 	struct stat stb;
@@ -413,7 +410,7 @@ amatch(s, p)
 		case '[':
 			ok = 0;
 			lc = 077777;
-			while (cc = *p++) {
+			while ((cc = *p++) != 0) {
 				if (cc == ']') {
 					if (ok)
 						break;
@@ -470,11 +467,14 @@ slash:
 				addpath(*s++);
 			addpath('/');
 			if (stat(gpath, &stb) == 0 && isdir(stb))
+            {
 				if (*p == 0) {
 					Gcat(gpath, "");
 					globcnt++;
-				} else
+				} else {
 					expand(p);
+                }
+            }
 			gpathp = sgpathp;
 			*gpathp = 0;
 			return (0);
@@ -482,11 +482,10 @@ slash:
 	}
 }
 
-static
-Gmatch(s, p)
-	register char *s, *p;
+static int
+Gmatch(char *s, char *p)
 {
-	register int scc;
+	int scc;
 	int ok, lc;
 	int c, cc;
 
@@ -497,7 +496,7 @@ Gmatch(s, p)
 		case '[':
 			ok = 0;
 			lc = 077777;
-			while (cc = *p++) {
+			while ((cc = *p++) != 0) {
 				if (cc == ']') {
 					if (ok)
 						break;
@@ -543,10 +542,9 @@ Gmatch(s, p)
 }
 
 static void
-Gcat(s1, s2)
-	register char *s1, *s2;
+Gcat(char *s1, char *s2)
 {
-	register int len = strlen(s1) + strlen(s2) + 1;
+	int len = strlen(s1) + strlen(s2) + 1;
 
 	if (gargc == gargmax) {
 		char **newvec;
@@ -565,8 +563,7 @@ Gcat(s1, s2)
 }
 
 static void
-addpath(c)
-	char c;
+addpath(char c)
 {
 
 	if (gpathp >= lastgpathp) {
@@ -579,38 +576,41 @@ addpath(c)
 }
 
 static void
-rscan(t, f)
-	register char **t;
-	int (*f)();
+rscan(char **t, int (*f)(char))
 {
-	register char *p, c;
+	char *p, c;
 
-	while (p = *t++) {
+	while ((p = *t++) != 0) {
 		if (f == tglob)
+        {
 			if (*p == '~')
+            {
 				gflag |= 2;
+            }
 			else if (eq(p, "{") || eq(p, "{}"))
+            {
 				continue;
-		while (c = *p++)
+            }
+        }
+		while ((c = *p++) != 0)
 			(*f)(c);
 	}
 }
 /*
 static
 scan(t, f)
-	register char **t;
+	char **t;
 	int (*f)();
 {
-	register char *p, c;
+	char *p, c;
 
 	while (p = *t++)
 		while (c = *p)
 			*p++ = (*f)(c);
 }
 */
-static
-tglob(c)
-	register char c;
+static int
+tglob(char c)
 {
 
 	if (any(c, globchars))
@@ -627,23 +627,22 @@ trim(c)
 }
 */
 
-letter(c)
-	register char c;
+int
+letter(char c)
 {
 
-	return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '_');
+	return ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_');
 }
 
-digit(c)
-	register char c;
+int
+digit(char c)
 {
 
 	return (c >= '0' && c <= '9');
 }
 
-any(c, s)
-	register int c;
-	register char *s;
+int
+any(int c, char *s)
 {
 
 	while (*s)
@@ -651,10 +650,11 @@ any(c, s)
 			return(1);
 	return(0);
 }
-blklen(av)
-	register char **av;
+
+int
+blklen(char **av)
 {
-	register int i = 0;
+	int i = 0;
 
 	while (*av++)
 		i++;
@@ -662,21 +662,19 @@ blklen(av)
 }
 
 char **
-blkcpy(oav, bv)
-	char **oav;
-	register char **bv;
+blkcpy(char **oav, char **bv)
 {
-	register char **av = oav;
+	char **av = oav;
 
-	while (*av++ = *bv++)
+	while ((*av++ = *bv++) != 0)
 		continue;
 	return (oav);
 }
 
-blkfree(av0)
-	char **av0;
+void
+blkfree(char **av0)
 {
-	register char **av = av0;
+	char **av = av0;
 
 	while (*av)
 		free(*av++);
@@ -686,7 +684,7 @@ blkfree(av0)
 static char *
 strspl(char *cp, char *dp)
 {
-	register char *ep = malloc((unsigned)(strlen(cp) + strlen(dp) + 1));
+	char *ep = malloc((unsigned)(strlen(cp) + strlen(dp) + 1));
 
 	if (ep == (char *)0)
 		fatal(NOMEM);
@@ -696,10 +694,9 @@ strspl(char *cp, char *dp)
 }
 
 char **
-copyblk(v)
-	register char **v;
+copyblk(char **v)
 {
-	register char **nv = (char **)malloc((unsigned)((blklen(v) + 1) *
+	char **nv = (char **)malloc((unsigned)((blklen(v) + 1) *
 						sizeof(char **)));
 	if (nv == (char **)0)
 		fatal(NOMEM);
@@ -707,12 +704,9 @@ copyblk(v)
 	return (blkcpy(nv, v));
 }
 
-static
-char *
-strend(cp)
-	register char *cp;
+static char *
+strend(char *cp)
 {
-
 	while (*cp)
 		cp++;
 	return (cp);
@@ -723,13 +717,14 @@ strend(cp)
  * user whose home directory is sought is currently.
  * We write the home directory of the user back there.
  */
-gethdir(home)
-	char *home;
+int
+gethdir(char *home)
 {
-	register struct passwd *pp = getpwnam(home);
+	struct passwd *pp = getpwnam(home);
 
 	if (pp == 0)
 		return (1);
 	strcpy(home, pp->pw_dir);
 	return (0);
 }
+

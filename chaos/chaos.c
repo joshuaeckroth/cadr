@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <time.h>
 
 #include <sys/types.h>
 #include <sys/uio.h>
@@ -20,6 +21,8 @@
 #include "ncp.h"
 #include "server.h"
 #include "log.h"
+#include "FILE.h"
+#include "rfc.h"
 
 struct chroute chaos_routetab[256];
 struct connection *chaos_conntab[256];
@@ -31,6 +34,21 @@ int chaos_rfcrcv;
 int chaos_clock;
 int chaos_error;
 
+void rcvpkt(struct chxcvr *xp);
+struct packet *ch_alloc_pkt(int datalen);
+void ch_free_pkt(struct packet *pkt);
+void sendctl(struct packet *pkt);
+void chmove(char *from, char *to, int n);
+void reflect(struct packet *pkt);
+void senddata(struct packet *pkt);
+void makests(struct connection *conn, struct packet *pkt);
+int concmp(struct packet *rfcpkt, char *lsnstr, int lsnlen);
+void lsnmatch(struct packet *rfcpkt, struct connection *conn);
+void clsconn(struct connection *conn, int state, struct packet *pkt);
+void rmlisten(struct connection *conn);
+void rlsconn(struct connection *conn);
+
+
 struct packet *chaos_lsnlist;	/* listening connections */
 
 struct packet *chaos_rfclist;
@@ -40,9 +58,6 @@ struct packet *chaos_rfctail;
 #define OUTPUT(x)
 #define NEWSTATE(x)
 #define RFCINPUT
-
-void senddata(struct packet *pkt);
-void rcvpkt(struct chxcvr *xp);
 
 /*
  * Zero out n bytes
@@ -283,15 +298,17 @@ receipt(struct connection *conn, unsigned short acknum, unsigned short recnum)
 	 * latest acknowledged packet, and wakeup output that might be blocked
 	 * on a full transmit window.
 	 */
-	if (cmp_gt(acknum, conn->cn_tacked))
-		if (cmp_gt(acknum, conn->cn_tlast))
-			debugf(DBG_WARN,
-			       "receipt: Invalid acknowledgment(%d,%d)",
-			       acknum, conn->cn_tlast);
-		else {
-			conn->cn_tacked = acknum;
-			OUTPUT(conn);
-		}
+	if (cmp_gt(acknum, conn->cn_tacked)) {
+          if (cmp_gt(acknum, conn->cn_tlast)) {
+            debugf(DBG_WARN,
+                   "receipt: Invalid acknowledgment(%d,%d)",
+                   acknum, conn->cn_tlast);
+          }
+          else {
+            conn->cn_tacked = acknum;
+            OUTPUT(conn);
+          }
+        }
 }
 
 /*
@@ -306,7 +323,9 @@ xmitdone(struct packet *pkt)
 	struct packet *npkt;
 
 	if (PH_FC(pkt->pk_phead) == 0 && CONTPKT(pkt) &&
-	    pkt->pk_stindex < CHNCONNS &&
+            // always true:
+            // warning: comparison of constant 256 with expression of type 'unsigned char' is always true [-Wtautological-constant-out-of-range-compare]
+	    //pkt->pk_stindex < CHNCONNS &&
 	    (conn = chaos_conntab[pkt->pk_stindex]) != NOCONN &&
 	    CH_INDEX_SHORT(pkt->pk_sidx) == 
 	    CH_INDEX_SHORT(conn->cn_Lidx) &&
@@ -359,7 +378,7 @@ chretran(struct connection *conn, int age)
 	struct packet *lastpkt;
 	struct packet *firstpkt = NOPKT;
 
-	for (opkt = &conn->cn_thead; pkt = *opkt;)
+	for (opkt = &conn->cn_thead; (pkt = *opkt) != 0;)
 		if (cmp_gt(chaos_clock, pkt->pk_time + age)) {
 			if (firstpkt == NOPKT) 
 				firstpkt = pkt;
@@ -593,7 +612,8 @@ sendlos(struct packet *pkt, char *str, int len)
 			length++;
 			cp++;
 		}
-		if (pkt = pktstr(pkt, str, len + length + sizeof("(from )") - 1)) {
+                pkt = pktstr(pkt, str, len + length + sizeof("(from )") - 1);
+		if (pkt != 0) {
 			chmove("(from ", &pkt->pk_cdata[len], 6);
 			chmove(chaos_myname, &pkt->pk_cdata[len + 6], length);
 			chmove(")", &pkt->pk_cdata[len + 6 + length], 1);
@@ -758,7 +778,7 @@ rcvrfc(struct packet *pkt)
 		debugf(DBG_LOW, "contact = %s", pkt->pk_cdata);
 		extern int flag_debug_level;
 		if (flag_debug_level > 2) {
-			dumpbuffer((u_char *)pkt, 64);
+                  dumpbuffer((u_char *)pkt, 64);
 		}
 	}
 
@@ -861,9 +881,8 @@ rcvrfc(struct packet *pkt)
 		chaos_rfctail = pkt;
 	}
 
-	debugf(DBG_INFO, "rcvrfc: Queued Rfc on chaos_rfclist: '%c%c%c%c'",
-		pkt->pk_cdata[0], pkt->pk_cdata[1], pkt->pk_cdata[2],
-		pkt->pk_cdata[3]);
+	debugf(DBG_INFO, "rcvrfc: Queued Rfc on chaos_rfclist: '%c%c'",
+               pkt->pk_cdata[0], pkt->pk_cdata[1]);
 
 	RFCINPUT;
 }
@@ -1180,10 +1199,9 @@ ignore:
 #if 1
 			prpkt(pkt, "STS");
 			debugf(DBG_INFO, 
-			       "Conn #%x, Receipt=%d, Trans Window=%d",
+			       "Conn #%x, Receipt=%d",
 			       conn->cn_Lidx,
-			       LE_TO_SHORT(pkt->pk_idata[0]), 
-			       LE_TO_SHORT(pkt->pk_idata[1]));
+			       LE_TO_SHORT(pkt->pk_idata[0]));
 #endif
 			if (LE_TO_SHORT(pkt->LE_pk_rwsize) > conn->cn_twsize)
 				OUTPUT(conn);

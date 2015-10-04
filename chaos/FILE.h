@@ -2,6 +2,8 @@
 #define FILE_H
 
 #include "chaos.h"
+#include <pwd.h>
+#include <sys/stat.h>
 
 #define BSIZE 512
 #define SBLOCK 8
@@ -32,7 +34,7 @@ struct file_error	{
  * If errstring is not set before calling error(), the string below is used.
  * This macro stuff is gross but necessary.
  */
-struct file_error	errors[]
+struct file_error errors[48]
 #ifdef DEFERROR
  = {
 #endif
@@ -164,7 +166,7 @@ extern char *errstring;			/* Error message if non-standard */
 #define ERRSIZE 100
 extern char errbuf[ERRSIZE + 1];	/* Buffer for building error messages */
 extern int globerr;			/* Error return from glob() */
-/*extern char *sys_errlist[];		/* System error messages */
+/*extern char *sys_errlist[]; */		/* System error messages */
 
 #if defined(__APPLE__) && defined(__MACH__)
 #define OSX
@@ -294,7 +296,8 @@ struct transaction	{
  */
 struct command		{
 	char			*c_name;	/* Command name */
-	int			(*c_func)();	/* Function to call */
+	void			(*x_func)(struct xfer*, struct transaction*);	/* Function to call */
+    void        (*t_func)(struct transaction*);
 	int			c_flags;	/* Various bits. See below */
 	char			*c_syntax;	/* Syntax description */
 };
@@ -351,7 +354,7 @@ struct option	{
 #define	O_OLD		BIT(9)	/* Complete for an existing file in COMPLETE */
 #define	O_NEWOK		BIT(10)	/* Complete for a possible new file */
 #define O_DEFAULT	BIT(11)	/* Choose character unless QFASL */
-#define O_DIRECTORY	BIT(12)	/* Used internally - not a keyword option */
+#define O_DIR    	BIT(12)	/* Used internally - not a keyword option */
 #define O_FAST		BIT(13)	/* Fast directory list - no properties */
 #define O_PRESERVE	BIT(14)	/* Preserve reference dates - not implemented */
 #define O_SORTED	BIT(15) /* Return directory list sorted - we do this */
@@ -424,8 +427,8 @@ struct xoption {
 #define FHLEN		5		/* Significant length of fh's */
 #define SYNOP		0201		/* Opcode for synchronous marks */
 #define ASYNOP		0202		/* Opcode for asynchronous marks */
-#define FALSE		"NIL"		/* False value in binary options */
-#define TRUE		"T"		/* True value in binary options */
+#define CHAOS_FALSE		"NIL"		/* False value in binary options */
+#define CHAOS_TRUE		"T"		/* True value in binary options */
 #define QBIN1		((unsigned)0143150)		/* First word of "QFASL" in SIXBIT */
 #define QBIN2		071660		/* Second word of "QFASL" */
 #define LBIN1		((unsigned)0170023)		/* First word of BIN file */
@@ -449,9 +452,9 @@ void write_log(int level, char *fmt, ...);
 
 void dumpbuffer(unsigned char *buf, int cnt);
 struct transaction *getwork();
-int parseargs(unsigned char *args, struct command *c, struct transaction *t);
+int parseargs(char *args, struct command *c, struct transaction *t);
 int getxoption(struct cmdargs *a, long xvalue, char **args);
-int string(unsigned char **args, unsigned char *term, unsigned char **dest);
+int string(char **args, char *term, char **dest);
 void tinit(struct transaction *t);
 void tfree(struct transaction *t);
 void afree(struct cmdargs *a);

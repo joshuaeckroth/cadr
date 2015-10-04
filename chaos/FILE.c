@@ -46,7 +46,7 @@
 
 #include <time.h>
 #include <sys/dir.h>
-
+#include <sys/types.h>
 #include <string.h>
 
 #ifndef MIN
@@ -209,25 +209,25 @@ char	propsyn[] =	{ STRING, OPEND, NL, STRING, NL, END };
  * Command definitions
  */
 struct command commands[] = {
-/*	c_name			c_funct		c_flags		c_syntax */
-{	"DATA-CONNECTION",	dataconn,	C_FHCANT|C_NOLOG,dcsyn	},
-{	"UNDATA-CONNECTION",	undataconn,	C_FHMUST|C_NOLOG,nosyn	},
-{	"OPEN",			fileopen,	0,		opensyn	},
-{	"CLOSE",		fileclose,	C_XFER|C_FHMUST,nosyn	},
-{	"FILEPOS",		filepos,	C_XFER|C_FHINPUT,possyn	},
-{	"DELETE",		delete,		0,		delsyn	},
-{	"RENAME",		xrename,	0,		rensyn	},
-{	"CONTINUE",		filecontinue,	C_XFER|C_FHMUST,nosyn	},
-{	"EXPUNGE",		expunge,	C_FHCANT,	expsyn	},
+/*	c_name			x_funct		t_funct     c_flags		c_syntax */
+{	"DATA-CONNECTION",	NULL, dataconn,	C_FHCANT|C_NOLOG,dcsyn	},
+{	"UNDATA-CONNECTION", NULL,	undataconn,	C_FHMUST|C_NOLOG,nosyn	},
+{	"OPEN",			NULL, fileopen, 0,		opensyn	},
+{	"CLOSE",		fileclose,	NULL, C_XFER|C_FHMUST,nosyn	},
+{	"FILEPOS",		filepos,	NULL, C_XFER|C_FHINPUT,possyn	},
+{	"DELETE",		NULL, delete,		0,		delsyn	},
+{	"RENAME",		NULL, xrename,	0,		rensyn	},
+{	"CONTINUE",		filecontinue,	NULL, C_XFER|C_FHMUST,nosyn	},
+{	"EXPUNGE",		NULL, expunge,	C_FHCANT,	expsyn	},
 /*{	"SET-BYTE-SIZE",	setbytesize,	C_XFER|C_FHINPUT,setsyn	},*/
 /*{	"ENABLE-CAPABILITIES", etc */
 /*{	"DISABLE-CAPABILITIES", etc */
-{	"LOGIN",		login,		C_FHCANT|C_NOLOG,logsyn	},
-{	"DIRECTORY",		directory,	C_FHINPUT,	dirsyn	},
-{	"COMPLETE",		complete,	C_FHCANT,	compsyn	},
-{	"CHANGE-PROPERTIES",	chngprop,	0,		changesyn },
-{	"CREATE-DIRECTORY",	crdir,		C_FHCANT,	crdirsyn },
-{	"PROPERTIES",		getprops,	C_FHINPUT,	propsyn },
+{	"LOGIN",		NULL, login,		C_FHCANT|C_NOLOG,logsyn	},
+{	"DIRECTORY",		NULL, directory,	C_FHINPUT,	dirsyn	},
+{	"COMPLETE",		NULL, complete,	C_FHCANT,	compsyn	},
+{	"CHANGE-PROPERTIES", NULL,	chngprop,	0,		changesyn },
+{	"CREATE-DIRECTORY",	NULL, crdir,		C_FHCANT,	crdirsyn },
+{	"PROPERTIES",		NULL, getprops,	C_FHINPUT,	propsyn },
 {	NOSTR	},
 };
 /*
@@ -254,7 +254,7 @@ struct command
 	"baz", mdatfh, 0, 0
 	}, adatcom = {
 	"quux", adatfh, 0, 0
-};
+    };
 
 static char *xgetbsize(struct stat *s, char *cp);
 
@@ -356,7 +356,11 @@ dumpbuffer(unsigned char *buf, int cnt)
  * with standard input and standard output set to the control connection
  * and with the connection open (already accepted)
  */
-void
+extern int chstatus(int fd, struct chstatus *chst);
+extern void chreject(int fd, char *string);
+extern int chsetmode(int fd, int mode);
+
+int
 main(int argc, char **argv)
 {
 	struct transaction *t;
@@ -416,13 +420,23 @@ main(int argc, char **argv)
 	(void)signal(SIGTERM, finish);
 	(void)signal(SIGHUP, SIG_IGN);
 
-	while (t = getwork())
+	while ((t = getwork()) != 0)
+    {
 		if (t->t_command->c_flags & C_XFER)
+        {
 			xcommand(t);
-		else
-			(*t->t_command->c_func)(t);
+        } else {
+            if(*t->t_command->t_func == NULL)
+            {
+                fatal("t_func is null after getwork()\n");
+            } else {
+                (*t->t_command->t_func)(t);
+            }
+        }
+    }
 	write_log(LOG_INFO, "FILE: exiting normally\n");
 	finish(0);
+    return 0;
 }
 
 /*
@@ -450,7 +464,7 @@ getwork()
 {
 	struct transaction *t;
 	struct command *c;
-	unsigned char *cp;
+	char *cp;
 	int length;
 	char *fhname, *cname, save;
 	int errcode;
@@ -511,7 +525,7 @@ getwork()
 			tfree(t);
 			return TNULL;
 		}
-		for (cp = (unsigned char *)p.cp_data; *cp != CHSP; )
+		for (cp = p.cp_data; *cp != CHSP; )
 			if (*cp++ == '\0') {
 				errstring = "Missing transaction id";
 				goto cmderr;
@@ -539,7 +553,7 @@ getwork()
 			t->t_fh = f;
 		}
 		for (cname = (char *)++cp;
-		     *cp != '\0' && *cp != CHSP && *cp != CHNL;)
+		     *cp != '\0' && *cp != CHSP && *cp != (char)CHNL;)
 			cp++;
 		save = *cp;
 		*cp = '\0';
@@ -600,7 +614,7 @@ getwork()
  * an error was found.
  */
 int
-parseargs(unsigned char *args, struct command *c, struct transaction *t)
+parseargs(char *args, struct command *c, struct transaction *t)
 {
 	char *syntax;
 	struct cmdargs *a;
@@ -611,12 +625,15 @@ parseargs(unsigned char *args, struct command *c, struct transaction *t)
 
 	t->t_args = ANULL;
 	if (c->c_syntax[0] == END)
+    {
 		if (args[0] == '\0')
+        {
 			return 0;
-		else {
+        } else {
 			errstring = "Arguments present where none expected";
 			return BUG;
 		}
+    }
 	if ((a = salloc(cmdargs)) == ANULL)
 		fatal(NOMEM);
 	/* From here on, goto synerr for errors so A gets freed */
@@ -640,7 +657,7 @@ parseargs(unsigned char *args, struct command *c, struct transaction *t)
 			}
 			continue;
 		case NL:
-			if (*args++ != CHNL) {
+			if (*args++ != (char)CHNL) {
 				(void)sprintf(errstring = errbuf,
 				"Newline expected where 0%o (octal) occurred",
 					args[-1]);
@@ -670,8 +687,8 @@ parseargs(unsigned char *args, struct command *c, struct transaction *t)
 			a->a_numbers[nnums++] = n;
 			continue;
 		case STRING:
-			if (errcode = string(&args, syntax,
-					     &a->a_strings[nstrings++]))
+			if ((errcode = string(&args, syntax,
+					     &a->a_strings[nstrings++])) != 0)
 				goto synerr;
 			continue;
 		case PNAME:
@@ -682,7 +699,7 @@ parseargs(unsigned char *args, struct command *c, struct transaction *t)
 			}
 			if ((p = salloc(plist)) == PNULL)
 				fatal(NOMEM);
-			if (errcode = string(&args, syntax, &p->p_name)) {
+			if ((errcode = string(&args, syntax, &p->p_name)) != 0) {
 				sfree(p);
 				goto synerr;
 			}
@@ -696,16 +713,16 @@ parseargs(unsigned char *args, struct command *c, struct transaction *t)
 				"Property value expected when no name given";
 				goto synerr;
 			}
-			if (errcode = string(&args, syntax, &p->p_value))
+			if ((errcode = string(&args, syntax, &p->p_value)) != 0)
 				goto synerr;
 			continue;
 		case OPTIONS:
-			while (*args != '\0' && *args != CHNL) {
+			while (*args != '\0' && *args != (char)CHNL) {
 				char *oname;
 
 				while (*args == ' ')
 					args++;
-				if (errcode = string(&args, "", &oname))
+				if ((errcode = string(&args, "", &oname)) != 0)
 					goto synerr;
 				if (*oname == '\0')
 					continue;
@@ -741,7 +758,7 @@ parseargs(unsigned char *args, struct command *c, struct transaction *t)
 					a->a_numbers[o->o_value] = n;
 					break;
 				case O_EXISTS:
-					if (errcode = getxoption(a, o->o_value, &args))
+					if ((errcode = getxoption(a, o->o_value, &args)) != 0)
 						goto synerr;
 					break;
 				}
@@ -777,7 +794,7 @@ getxoption(struct cmdargs *a, long xvalue, char **args)
 		errstring = "Missing value for open option";
 		return MSC;
 	}
-	if (errcode = string(args, "", &xname))
+	if ((errcode = string(args, "", &xname)) != 0)
 		return errcode;
 	if (*xname == '\0') {
 		errstring = "Empty value for open option";
@@ -799,11 +816,11 @@ getxoption(struct cmdargs *a, long xvalue, char **args)
  * If term is null, terminate the string on CHSP, CHNL, or null.
  */
 int
-string(unsigned char **args, unsigned char *term, unsigned char **dest)
+string(char **args, char *term, char **dest)
 {
-	unsigned char *cp;
-	unsigned char *s;
-	unsigned char delim, save;
+	char *cp;
+	char *s;
+	char delim, save;
 
 	if (*term == OPEND)
 		term++;
@@ -824,11 +841,11 @@ string(unsigned char **args, unsigned char *term, unsigned char **dest)
 		fatal("Bad delimiter for string: %o", *term);
 	}
 	for (cp = *args; *cp != delim; cp++)
-		if (*cp == '\0' || *term == 0 && (*cp == CHSP || *cp == CHNL))
+		if (*cp == '\0' || (*term == 0 && (*cp == CHSP || *cp == (char)CHNL)))
 			break;
 	save = *cp;
 	*cp = '\0';
-	s = (unsigned char *)savestr((char *)*args);
+	s = savestr(*args);
 	*cp = save;
 	*args = cp;
 	*dest = s;
@@ -1026,6 +1043,9 @@ syncmark(struct file_handle *f)
  * tha handling of any other commands for a bit.  It should, if others already
  * exist, create a transfer task, just for the purpose of waiting. Yick.
  */
+extern int chwaitfornotstate(int fd, int state);
+extern int chopen(int address, char *contact, int mode, int async, char *data, int dlength, int rwsize);
+
 void
 dataconn(struct transaction *t)
 {
@@ -1152,6 +1172,8 @@ pwok(struct passwd *p, char *pw)
  * Process a login command... verify the users name and
  * passwd.
  */
+extern char *chaos_name(short addr);
+
 void
 login(struct transaction *t)
 {
@@ -1317,7 +1339,7 @@ fileopen(struct transaction *t)
 	int ifexists = t->t_args->a_exists[O_IFEXISTS];
 	int ifnexists = t->t_args->a_exists[O_IFNEXISTS];
 	char *pathname = t->t_args->a_strings[0];
-	char *realname = NOSTR, *dirname = NOSTR, *qfasl = FALSE;
+	char *realname = NOSTR, *dirname = NOSTR, *qfasl = CHAOS_FALSE;
 	char *tempname = NOSTR;
 	char response[CHMAXDATA + 1];
 	long nbytes;
@@ -1571,8 +1593,8 @@ fileopen(struct transaction *t)
 			unsigned short ss[2];
 
 			if (read(fd, (char *)ss, sizeof(ss)) == sizeof(ss) &&
-			    (ss[0] == QBIN1 && ss[1] == QBIN2 ||
-			     ss[0] == LBIN1 && ss[1] < LBIN2LIMIT))
+			    ((ss[0] == QBIN1 && ss[1] == QBIN2) ||
+			     (ss[0] == LBIN1 && ss[1] < LBIN2LIMIT)))
 				options |= O_BINARY;
 			else
 				options |= O_CHARACTER;
@@ -1581,7 +1603,7 @@ fileopen(struct transaction *t)
 		break;
 	}
 	if (options & O_BINARY) {
-		qfasl = TRUE;
+		qfasl = CHAOS_TRUE;
 		if (bytesize == 0)
 			bytesize = 16;
 		else if (bytesize < 0 || bytesize > 16) {
@@ -1606,7 +1628,7 @@ fileopen(struct transaction *t)
 			tm->tm_hour, tm->tm_min, tm->tm_sec, nbytes,
 			qfasl, options & O_DEFAULT ? " " : "",
 			options & O_DEFAULT ? (options & O_CHARACTER ?
-					       TRUE : FALSE) : "",
+					       CHAOS_TRUE : CHAOS_FALSE) : "",
 			CHNL, realname, CHNL);
 	else
 		(void)sprintf(response,
@@ -1664,6 +1686,7 @@ tempfile(char *dname)
 			uniq -= 100;
 		(void)sprintf(cp, "%s/#FILE%05d%02d", dname, mypid, uniq);
 		if (access(cp, F_OK) != 0)
+        {
 			if (errno == ENOENT) {
 				/*
 				 * We could be losing here if the directory doesn't exist,
@@ -1671,8 +1694,10 @@ tempfile(char *dname)
 				 */
 				lastnum = ++uniq;
 				return cp;
-			} else
+			} else {
 				break;
+            }
+        }
 	}
 	free(cp);
 	return NOSTR;	/* Our caller checks errno */
@@ -1708,10 +1733,13 @@ getprops(struct transaction *t)
 			realname = savestr(x->x_realname);
 			tempname = savestr(x->x_tempname);
 		}
-	} else
+	} else {
 		errcode = parsepath(a->a_strings[1], &dirname, &realname, 0);
+    }
 	if (errcode == 0)
+    {
 		if (stat(realname, &sbuf) < 0)
+        {
 			switch (errno) {
 			case EACCES:
 				errstring = SEARCHDIR;
@@ -1730,7 +1758,7 @@ getprops(struct transaction *t)
 			default:
 				errcode = MSC;
 			}
-		else {
+        } else {
 			if (!(a->a_options & (O_BINARY | O_CHARACTER)))
 			 	a->a_options |= O_CHARACTER;
 			x = makexfer(t, a->a_options | O_PROPERTIES);
@@ -1747,6 +1775,7 @@ getprops(struct transaction *t)
 			}
 			xflush(x);
 		}
+    }
 	error(t, t->t_fh->f_name, errcode);
 }
 
@@ -1795,7 +1824,7 @@ propread(struct xfer *x)
 			while (*ep)
 				ep++;
 			*ep++ = ' ';
-			if (ep = (*p->p_get)(&sbuf, ep)) {
+			if ((ep = (*p->p_get)(&sbuf, ep)) != 0) {
 				*ep++ = '\n';
 				cp = ep;
 			}
@@ -1825,7 +1854,7 @@ directory(struct transaction *t)
 	} else if ((errcode = parsepath(a->a_strings[0], &dirname, &realname, 0)) == 0) {
 		if (!(a->a_options & (O_BINARY | O_CHARACTER)))
 		 	a->a_options |= O_CHARACTER;
-		x = makexfer(t, a->a_options | O_DIRECTORY);
+		x = makexfer(t, a->a_options | O_DIR);
 		x->x_realname = realname;
 		x->x_dirname = dirname;
 		x->x_state = X_IDLE;
@@ -1845,6 +1874,8 @@ directory(struct transaction *t)
  * directory command.
  * Note that this happens as the first work in a transfer process.
  */
+extern char ** glob(char *v);
+
 void
 diropen(struct xfer *ax, struct transaction *t)
 {
@@ -1929,7 +1960,7 @@ diropen(struct xfer *ax, struct transaction *t)
 				while (*cp)
 					cp++;
 				*cp++ = ' ';
-				if (cp = (*p->p_get)(s, cp)) {
+				if ((cp = (*p->p_get)(s, cp)) != 0) {
 					*cp++ = '\n';
 					x->x_bptr = cp;
 				}
@@ -1975,7 +2006,7 @@ dirread(struct xfer *x)
 				while (*cp)
 					cp++;
 				*cp++ = ' ';
-				if (cp = (*p->p_get)(&sbuf, cp)) {
+				if ((cp = (*p->p_get)(&sbuf, cp)) != 0) {
 					*cp++ = '\n';
 					x->x_bptr = cp;
 				}
@@ -2072,6 +2103,8 @@ xflush(struct xfer *x)
 /*
  * Free storage associated with xfer struct.
  */
+extern void blkfree(char **av0);
+
 void
 xfree(struct xfer *x)
 {
@@ -2111,9 +2144,9 @@ void
 fileclose(struct xfer *x, struct transaction *t)
 {
 	x->x_flags |= X_CLOSE;
-	switch (x->x_options & (O_READ | O_WRITE | O_DIRECTORY | O_PROPERTIES)) {
+	switch (x->x_options & (O_READ | O_WRITE | O_DIR | O_PROPERTIES)) {
 	case O_READ:
-	case O_DIRECTORY:
+	case O_DIR:
 	case O_PROPERTIES:
 		/*
 		 * On READing transfers we brutally force the X_DONE
@@ -2160,7 +2193,7 @@ xclose(struct xfer *ax)
 #ifndef SELECT
 	(void)write(ctlpipe[1], (char *)&ax, sizeof(x)); 
 #endif 
-        if (x->x_options & (O_DIRECTORY|O_PROPERTIES)) {
+        if (x->x_options & (O_DIR|O_PROPERTIES)) {
 		respond(t, NOSTR);
 		return;
 	}
@@ -2218,15 +2251,14 @@ xclose(struct xfer *ax)
 			timep[0].tv_sec = (x->x_options&O_PRESERVE ||
 				    x->x_flags&X_ATIME) ? x->x_atime :
 				    sbuf.st_atime;
+            timep[0].tv_usec = 0;
 			timep[1].tv_sec = (x->x_options&O_PRESERVE ||
 				    x->x_flags&X_MTIME) ? x->x_mtime :
 				    sbuf.st_mtime;
-		/*	timep[0].tv_nsec = 0; */
-		/*	timep[1].tv_nsec = 0; */
+            timep[1].tv_usec = 0;
 
 #else
-			time_t timep[2];
-
+            time_t timep[2];
 			timep[0] = (x->x_options&O_PRESERVE ||
 				    x->x_flags&X_ATIME) ? x->x_atime :
 				    sbuf.st_atime;
@@ -2403,7 +2435,7 @@ delete(struct transaction *t)
 			errstring =
 				"No transfer when DELETE on file handle";
 			error(t, f->f_name, BUG);
-		} else if (f->f_xfer->x_options & (O_PROPERTIES|O_DIRECTORY)) {
+		} else if (f->f_xfer->x_options & (O_PROPERTIES|O_DIR)) {
 			errstring =
 				"Trying to DELETE a directory list transfer";
 			error(t, f->f_name, BUG);
@@ -2547,7 +2579,7 @@ xrename(struct transaction *t)
 		} else if ((x = f->f_xfer) == XNULL) {
 			errstring = "No transfer on file handle for RENAME";
 			error(t, f->f_name, BUG);
-		} else if (x->x_options & (O_DIRECTORY|O_PROPERTIES)) {
+		} else if (x->x_options & (O_DIR|O_PROPERTIES)) {
 			errstring = "Can't rename in DIRECTORY command.";
 			error(t, f->f_name, BUG);
 		} else {
@@ -2739,26 +2771,34 @@ complete(struct transaction *t)
 		if (*cp == '/')
 			cp++;
 		if (*cp != '\0')
+        {
 			if ((tp = rindex(cp, '.')) == NOSTR)
+            {
 				dname = savestr(cp);
+            }
 			else {
 				*tp = '\0';
 				dname = savestr(cp);
 				dtype = savestr(tp+1);
 				*tp = '.';
 			}
+        }
 		cp = &ireal[strlen(adir)];
 		if (*cp == '/')
 			cp++;
 		if (*cp != '\0')
+        {
 			if ((tp = rindex(cp, '.')) == NOSTR)
+            {
 				iname = savestr(cp);
+            }
 			else {
 				*tp = '\0';
 				iname = savestr(cp);
 				itype = savestr(tp + 1);
 				*tp = '.';
 			}
+        }
 		if (log_verbose) {
 			write_log(LOG_INFO, "ifile:'%s'\nireal:'%s'\nidir:'%s'\n",
 			    ifile ? ifile : "!",
@@ -2997,12 +3037,12 @@ crdir(struct transaction *t)
 	int errcode;
 	struct stat sbuf;
 
-	if (errcode = parsepath(t->t_args->a_strings[0], &dir, &file, 1))
+	if ((errcode = parsepath(t->t_args->a_strings[0], &dir, &file, 1)) != 0)
 		error(t, "", errcode);
 	else {
 		free(file);
 		file = NULL;
-		if (errcode = parsepath(dir, &parent, &file, 0))
+		if ((errcode = parsepath(dir, &parent, &file, 0)) != 0)
 			error(t, "", errcode);
 		else if (access(parent, X_OK|W_OK) != 0) {
 			if (errno == EACCES) {
@@ -3069,7 +3109,7 @@ expunge(struct transaction *t)
 	char *dir = NULL, *file = NULL;
 	int errcode;
 	
-	if (errcode = parsepath(t->t_args->a_strings[0], &dir, &file, 1))
+	if ((errcode = parsepath(t->t_args->a_strings[0], &dir, &file, 1)) != 0)
 		error(t, "", errcode);
 	else {
 		free(file);
@@ -3101,7 +3141,7 @@ chngprop(struct transaction *t)
 			errstring =
 			"No transfer on file handle for CHANGE-PROPERTIES";
 			error(t, fhname, BUG);
-		} else if (f->f_xfer->x_options & (O_PROPERTIES|O_DIRECTORY)) {
+		} else if (f->f_xfer->x_options & (O_PROPERTIES|O_DIR)) {
 			errstring = "CHANGE-PROPERTIES on directory transfer";
 			error(t, fhname, BUG);
 		} else {
@@ -3113,7 +3153,7 @@ chngprop(struct transaction *t)
 		}
 	} else
 		fhname = "";
-	if (errcode = parsepath(t->t_args->a_strings[0], &dir, &file, 0))
+	if ((errcode = parsepath(t->t_args->a_strings[0], &dir, &file, 0)) != 0)
 		error(t, fhname, errcode);
 	else if (stat(file, &sbuf) < 0) {
 		switch (errno) {
@@ -3142,18 +3182,22 @@ chngprop(struct transaction *t)
 doit:
 		for (plp = t->t_args->a_plist; plp; plp = plp->p_next) {
 			for (pp = properties; pp->p_indicator; pp++)
+            {
 				if (strcmp(pp->p_indicator, plp->p_name) == 0)
+                {
 					if (pp->p_put)
-						if (errcode =
+                    {
+						if (0 != (errcode =
 						    (*pp->p_put)
 						    (&sbuf, file,
-						     plp->p_value, x)) {
+						     plp->p_value, x))) {
 							error(t,
 							      fhname, errcode);
 							return;
-						} else
+						} else {
 							break;
-					else {
+                        }
+					} else {
 						errstring = errbuf;
 						(void)sprintf(errstring,
 						"No a changeable property: %s",
@@ -3161,6 +3205,8 @@ doit:
 						error(t, fhname, CSP);
 						return;
 					}
+                }
+            }
 			if (pp->p_indicator == NOSTR) {
 				(void)sprintf(errbuf,
 					"Unknown property name: %s",
@@ -3332,7 +3378,7 @@ getname(struct stat *s, char *cp)
 {
 	struct passwd *pw;
 
-	if (pw = getpwuid(s->st_uid))
+	if ((pw = getpwuid(s->st_uid)) != 0)
 		(void) sprintf(cp, "%s", pw->pw_name);
 	else
 		(void) sprintf(cp, "#%d", s->st_uid);
@@ -3430,11 +3476,19 @@ putmdate(struct stat *s, char *file, char *newtime, struct xfer *x)
 		return IPV;
 	}
 	if (mtime != s->st_mtime) {
-		time_t timep[2];
-
-		timep[0] = s->st_atime;
-		timep[1] = mtime;
-		if (utime(file, timep) < 0) {
+#ifdef OSX
+		struct timeval timep[2];
+		timep[0].tv_sec = s->st_atime;
+        timep[0].tv_usec = 0;
+		timep[1].tv_sec = mtime;
+        timep[1].tv_usec = 0;
+		if (utimes(file, timep) < 0) {
+# else
+        time_t timep[2];
+        timep[0] = s->st_atime;
+        timep[1] = mtime;
+        if (utime(file, timep) < 0) {
+#endif
 			errstring =
 				"No permission to change modification time";
 			return ATF;
@@ -3469,11 +3523,19 @@ putrdate(struct stat *s, char *file, char *newtime, struct xfer *x)
 		return IPV;
 	}
 	if (atime != s->st_atime) {
-		time_t timep[2];
-
-		timep[1] = s->st_mtime;
-		timep[0] = atime;
-		if (utime(file, timep) < 0) {
+#ifdef OSX
+		struct timeval timep[2];
+		timep[0].tv_sec = atime;
+        timep[0].tv_usec = 0;
+		timep[1].tv_sec = s->st_mtime;
+        timep[1].tv_usec = 0;
+		if (utimes(file, timep) < 0) {
+#else
+        time_t timep[2];
+        timep[0] = atime;
+        timep[1] = s->st_mtime;
+        if (utime(file, timep) < 0) {
+#endif
 			errstring = "No permission to change reference date";
 			return ATF;
 		} else if (x) {
@@ -3640,7 +3702,7 @@ parsepath(char *path, char **dir, char **real, int blankok)
 	if (wd[0] != '\0')
 		(void)strcat(cp, "/");
 	(void)strcat(cp, path);
-	if (errcode = dcanon(cp, blankok)) {
+	if ((errcode = dcanon(cp, blankok)) != 0) {
 		(void)free(cp);
 		return errcode;
 	}
@@ -3681,19 +3743,27 @@ dcanon(char *cp, int blankok)
 		p = sp;			/* save start of component */
 		if (*sp == '\0') { 	/* if component is null */
 			if (--sp != cp)	/* if path is not one char (i.e. /) */
+            {
 				if (blankok)
+                {
 					break;
+                }
 				else
+                {
 					return IPS;
+                }
+            }
 			break;
 		}
 		slash = 0;
 		if (*p) while(*++p)	/* find next slash or end of path */
+        {
 			if (*p == '/') {
 				slash = 1;
 				*p = 0;
 				break;
 			}
+        }
 /* Can't do this now since we also parse {foo,abc,xyz}
 		if (p - sp > DIRSIZ) {
 			(void)sprintf(errstring = errbuf,
@@ -3831,10 +3901,10 @@ dowork(struct xfer *x)
 	 * is usually just a single disk operation which is probably not worth
 	 * worrying about.
 	 */
-	switch (x->x_options & (O_READ | O_WRITE | O_DIRECTORY | O_PROPERTIES)) {
+	switch (x->x_options & (O_READ | O_WRITE | O_DIR | O_PROPERTIES)) {
 	case O_READ:
 	case O_PROPERTIES:
-	case O_DIRECTORY:
+	case O_DIR:
 		switch (x->x_state) {
 		case X_DERROR:
 			return X_FLUSH;
@@ -3879,7 +3949,7 @@ dowork(struct xfer *x)
 					    "Before read pos: %ld\n",
 					    tell(x->x_fd));
 				}
-				n = x->x_options & O_DIRECTORY ? dirread(x) :
+				n = x->x_options & O_DIR ? dirread(x) :
 					    x->x_options & O_PROPERTIES ? propread(x) :
 					    read(x->x_fd, x->x_bbuf, FSBSIZE);
 				
@@ -4064,6 +4134,7 @@ write_log(0, "xpread default\n");
 			}
 write_log(0, "x %p, x->x_room %d\n", x, x->x_room);
 			if (x->x_room == 0)
+            {
 				if (xbwrite(x) >= 0) {
 					x->x_bptr = x->x_bbuf;
 					x->x_room = FSBSIZE;
@@ -4081,11 +4152,13 @@ writerr:
 						x->x_state = X_WSYNC;
 					}
 				}
+            }
 		}
 write_log(0, "X_CONTINUE\n");
 		return X_CONTINUE;
 	}
 	/* NOTREACHED */
+    return 0;
 }
 
 /*
@@ -4272,6 +4345,8 @@ loop:
 		fatal("Bad opcode on data connection");
 		/* NOTREACHED */
 	}
+    /* NOTREACHED */
+    return 0;
 }	
 
 /*
@@ -4319,7 +4394,7 @@ put on runq or something, set up which fd and why to wait....
 		errstring = "Can't create transfer process";
 		return NER;
 	default:
-		if (!(x->x_options & (O_PROPERTIES|O_DIRECTORY)))
+		if (!(x->x_options & (O_PROPERTIES|O_DIR)))
 			(void)close(x->x_fd);
 		x->x_fd = -1;
 		(void)close(pfd[0]);
@@ -4399,7 +4474,7 @@ delfh(struct xfer *x, struct transaction *t)
 }
 
 void
-renfh(struct xfer *x, register struct transaction *t)
+renfh(struct xfer *x, struct transaction *t)
 {
 	free(x->x_realname);
 	x->x_realname = t->t_args->a_strings[0];
@@ -4458,7 +4533,7 @@ makecmd(struct command *c, struct file_handle *f)
  * of this process, send it to the subprocess.
  */
 void
-sendcmd(struct transaction *t, register struct xfer *x)
+sendcmd(struct transaction *t, struct xfer *x)
 {
 	struct cmdargs *a;
 	struct pmesg pm;
@@ -4466,15 +4541,15 @@ sendcmd(struct transaction *t, register struct xfer *x)
 	pm.pm_cmd = t->t_command;
 	strncpy(pm.pm_tid, t->t_tid, TIDLEN);
 	pm.pm_tid[TIDLEN] = '\0';
-	if (a = t->t_args) {
+	if ((a = t->t_args) != 0) {
 		pm.pm_args = 1;
 		pm.pm_n = a->a_numbers[0];
 		pm.pm_strlen = a->a_strings[0] ? strlen(a->a_strings[0]) : 0;
 	} else
 		pm.pm_args = 0;
 	if (write(x->x_pfd, (char *)&pm, sizeof(pm)) != sizeof(pm) ||
-	    a && a->a_strings[0] &&
-	    write(x->x_pfd, a->a_strings[0], (unsigned)pm.pm_strlen) != pm.pm_strlen) {
+	    (a && a->a_strings[0] &&
+	     write(x->x_pfd, a->a_strings[0], (unsigned)pm.pm_strlen) != pm.pm_strlen)) {
 		errstring = "No transfer process to receive command";
 		error(t, t->t_fh->f_name, BUG);
 	} else {
@@ -4482,8 +4557,8 @@ sendcmd(struct transaction *t, register struct xfer *x)
 		 * Reading transfers need to be interrupted since they might be
 		 * hung on output to the net.
 		 */
-		if ((t->t_command->c_func == fileclose ||
-		     t->t_command->c_func == filepos) && x->x_options & O_READ)
+		if (((void*)t->t_command->x_func == (void*)fileclose ||
+		     ((void*)t->t_command->x_func == (void*)filepos && x->x_options & O_READ)))
 			(void)kill(x->x_pid, SIGHUP);
 		write_log(LOG_INFO, "FILE: send %s command\n", t->t_command->c_name);
 		tfree(t);
@@ -4524,7 +4599,15 @@ rcvcmd(struct xfer *x)
 	} else
 		t->t_args = ANULL;
 	write_log(LOG_INFO, "FILE: rcvd %s command\n", t->t_command->c_name);
-	(*t->t_command->c_func)(x, t);
+    if(*t->t_command->x_func != NULL)
+    {
+        (*t->t_command->x_func)(x, t);
+    }
+    else
+    {
+        write_log(LOG_ERR, "x_func is NULL for rcvd %s command\n", t->t_command->c_name);
+        fatal("Bad x_func");
+    }
 }
 
 /*

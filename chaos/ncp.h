@@ -1,3 +1,6 @@
+#ifndef NCP_H
+#define NCP_H
+
 /*
  * ncp.h
  *
@@ -11,6 +14,57 @@
 
 #define CHNCONNS	256
 #define CHNSUBNET	128
+#define CHSTATNAME	32	/* Length of node name in STATUS protocol */
+
+/*
+ * A chaos network address.
+ * JAO: By convention, the subnet is the MSB and the host the LSB
+ * of the 16-bit (short) address. On the network, and in memory, 
+ * LSB comes first.
+ */
+ 
+typedef	struct {
+  unsigned char	host;	/* Host number on subnet */
+  unsigned char	subnet;	/* Subnet number */
+} chaddr;
+
+/*
+ * A chaos index - a hosts connection identifier
+ * JAO: by convention, the LSB are used as an index into a table
+ * (ci_Tidx), and the MSB is incremented to keep connection indices
+ * unique to avoid collisions.
+ */
+
+typedef	struct	{
+  unsigned char	tidx;	/* Connection table index */
+  unsigned char	uniq;	/* Uniquizer for table slot */
+} chindex;
+
+#define CH_INDEX_SHORT(ci) ((ci).tidx | ((ci).uniq << 8))
+#define SET_CH_INDEX(ci,short) do { ci.tidx = (short & 0xff); ci.uniq = (short & 0xff00) >> 8; } while (0)
+
+/* The packet length is 16 bits, but only the lowest 12 bits denote
+   an actual length; the MSB 4 bits are a forwarding count. We store them
+   in CHAOS network order, LSB first. */
+   
+typedef struct {
+  unsigned char lsb;
+  unsigned char msb;
+} chpklenfc;
+
+struct pkt_header {
+  unsigned char		ph_type;	/* Protocol type */
+  unsigned char		ph_op;		/* Opcode of the packet */
+  chpklenfc             ph_lenfc;
+  
+  chaddr		ph_daddr;		/* Destination address */
+  chindex		ph_didx;		/* Destination index */
+  chaddr		ph_saddr;		/* Source address */
+  chindex		ph_sidx;		/* Source index */
+  unsigned short	LE_ph_pkn; 		/* Packet number */
+  unsigned short	LE_ph_ackn; 	/* Acknowledged packet number */
+};
+
 
 /*
  * System and device independent include file for the Chaosnet NCP
@@ -331,6 +385,14 @@ extern struct connection *allconn(void);
 extern struct connection *ch_open(int, int, struct packet *);
 extern struct connection *ch_listen(struct packet *, int);
 
+
+void ch_accept(struct connection *conn);
+void ch_read(struct connection *conn);
+int ch_full(struct connection *conn);
+int ch_empty(struct connection *conn);
+int ch_write(struct connection *conn, struct packet *pkt);
+int ch_setmode(struct connection *conn, int mode);
+
 /* debugging instrumentation */
 
 #define DEBUG_CHAOS
@@ -349,4 +411,6 @@ extern struct connection *ch_listen(struct packet *, int);
 
 #else
 #define debug(a,b)
+#endif
+
 #endif

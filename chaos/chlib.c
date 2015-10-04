@@ -3,8 +3,6 @@
  *
  * chaos support library for unix chaos servers
  * communicated with chaos server to manipulate chaos connections
- *
- * $Id: chlib.c 58 2005-12-14 00:08:53Z brad $
  */
 
 #include <stdio.h>
@@ -28,8 +26,7 @@ char *crypt(char *s1, char *s2)
 #endif
 
 char *
-chaos_name(addr)
-short addr;
+chaos_name(short addr)
 {
 	printf("chaos_name(addr=%o)\n", addr);
 	return "server";
@@ -193,18 +190,16 @@ chsetmode(int fd, int mode)
 	return 0;
 }
 
-
-chlisten(contact, mode, async, rwsize)
-char *contact;
+int
+chlisten(char *contact, int mode, int async, int rwsize)
 {
 	printf("chlisten(contact=%s)\n", contact);
 
 	return chopen(0, contact, mode, async, 0, 0, rwsize);
 }
 
-chreject(fd, string)
-int fd;
-char *string;
+void
+chreject(int fd, char *string)
 {
 	struct chreject chr;
 

@@ -622,7 +622,7 @@ read_child_ctl(void)
         break;
 
     case 3: /* setmode */
-        ret= ch_setmode(child_conn[conn_num].conn);
+        ret = ch_setmode(child_conn[conn_num].conn, mode);
 
         ctlbuf[0] = 3;
         ctlbuf[1] = ret;
@@ -843,7 +843,7 @@ usage(void)
 
 extern char *optarg;
 
-main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
     int c, waiting;
 

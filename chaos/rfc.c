@@ -16,11 +16,10 @@
 #include "ncp.h"
 #include "server.h"
 #include "log.h"
+#include "rfc.h"
 
 extern struct chroute chaos_routetab[];
 extern char chaos_myname[];
-
-extern struct packet *ch_alloc_pkt(int datalen);
 
 /*
  * process a RFC for contact name STATUS

@@ -203,7 +203,7 @@ decode_chaos(char *buffer, int len)
                 tv2.tv_sec = (tv1.tv_sec - 1) - tv_last.tv_sec;
             }
         }
-        printf("%4d:%06d ", tv2.tv_sec, tv2.tv_usec);
+        printf("%4ld:%06d ", tv2.tv_sec, tv2.tv_usec);
         tv_last = tv1;
     }
 

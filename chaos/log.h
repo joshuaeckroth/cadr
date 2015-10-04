@@ -13,5 +13,9 @@ enum {
 	TRACE_LOW
 };
 
+int log_init(void);
+int log_shutdown(void);
 void write_log(int level, char *fmt, ...);
+void debugf(int level, char *fmt, ...);
+void tracef(int level, char *fmt, ...);
 

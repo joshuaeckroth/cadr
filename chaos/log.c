@@ -51,7 +51,7 @@ write_log(int level, char *fmt, ...)
     va_end(ap);
 
     if (flag_daemon) {
-        syslog(level, string);
+        syslog(level, "%s", string);
     } else {
         printf("log: %s\n", string);
     }

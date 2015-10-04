@@ -19,6 +19,16 @@
 
 #include "log.h"
 
+/* signal.c is compiled into both chaosd and server,
+ * which each (chaosd.c and server.c) provide their
+ * own (equivalent) implementations of server_shutdown(),
+ * so just indicate it as an extern.
+ */
+extern int server_shutdown(void);
+/* same with restart_child() */
+extern void restart_child(void);
+
+
 int got_sighup;
 int got_sigterm;
 int got_sigchld;

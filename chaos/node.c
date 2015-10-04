@@ -11,9 +11,11 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/uio.h>
+#include <unistd.h>
 
 #include "chaosd.h"
 #include "log.h"
+#include "FILE.h"
 
 #define MAX_NODES	10
 
@@ -84,6 +86,8 @@ node_destroy(node_t *node)
         }
     }
 #endif
+
+    return 0;
 }
 
 /*
@@ -150,10 +154,9 @@ node_stream_reader(int fd, void *void_node, int context)
     if (ret != len) {
         debugf(DBG_INFO | DBG_ERRNO,
                "length data error, ret %d != len %d: "
-               "%04X %04X %04X %04X %04X %04X %04X ...\n",
+               "%04X %04X %04X %04X\n",
                ret, len,
-               lenbytes[0], lenbytes[1], lenbytes[2], lenbytes[3],
-               lenbytes[4], lenbytes[5], lenbytes[6]);
+               lenbytes[0], lenbytes[1], lenbytes[2], lenbytes[3]);
         return -1;
     }
 
@@ -210,11 +213,13 @@ node_stream_reader(int fd, void *void_node, int context)
 int
 node_init(void)
 {
+    return 0;
 }
 
 int
 node_poll(void)
 {
+    return 0;
 }
 
 
