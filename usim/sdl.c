@@ -20,9 +20,10 @@
 #include "logo.h"
 
 extern int run_ucode_flag;
+extern unsigned long cycles;
 
 #ifndef VIDEO_HEIGHT
-# define VIDEO_HEIGHT 1024
+# define VIDEO_HEIGHT 897 /* 1024 */
 #endif
 #ifndef VIDEO_WIDTH
 # define VIDEO_WIDTH 768
@@ -54,6 +55,8 @@ extern void sdl_process_key(SDL_KeyboardEvent *ev, int keydown);
 extern int mouse_sync_flag;
 
 static int old_run_state;
+
+int mouse_or_kbd;
 
 
 static void sdl_send_mouse_event(void)
@@ -117,15 +120,17 @@ send_accumulated_updates(void)
 {
 	int hs, vs;
 
-	hs = u_maxh - u_minh;
-	vs = u_maxv - u_minv;
-	if (u_minh != 0x7fffffff && u_minv != 0x7fffffff && u_maxh && u_maxv)
-		SDL_UpdateRect(screen, u_minh, u_minv, hs, vs);
-
-	u_minh = 0x7fffffff;
-	u_maxh = 0;
-	u_minv = 0x7fffffff;
-	u_maxv = 0;
+    //printf("u_minh = %d, u_maxh = %d, u_minv = %d, u_maxv = %d\n", u_minh, u_maxh, u_minv, u_maxv);
+	if (u_minh != 0x7fffffff && u_minv != 0x7fffffff && u_maxh && u_maxv && ((cycles & 0x8fffff) == 0 || mouse_or_kbd)) {
+      hs = u_maxh - u_minh;
+      vs = u_maxv - u_minv;
+      SDL_UpdateRect(screen, u_minh, u_minv, hs, vs);
+      u_minh = 0x7fffffff;
+      u_maxh = 0;
+      u_minv = 0x7fffffff;
+      u_maxv = 0;
+      mouse_or_kbd = 0;
+    }
 }
 
 void
@@ -142,27 +147,31 @@ sdl_refresh(void)
 
 		switch (ev->type) {
 		case SDL_VIDEOEXPOSE:
-			sdl_update(ds, 0, 0, screen->w, screen->h);
+          sdl_update(ds, 0, 0, screen->w, screen->h);
 			break;
 
 		case SDL_KEYDOWN:
 			sdl_process_key(&ev->key, 1);
+            mouse_or_kbd = 1;
 			break;
 
 		case SDL_KEYUP:
 			sdl_process_key(&ev->key, 0);
+            mouse_or_kbd = 1;
 			break;
 		case SDL_QUIT:
 			sdl_system_shutdown_request();
 			break;
 		case SDL_MOUSEMOTION:
 			sdl_send_mouse_event();
+            mouse_or_kbd = 1;
 			break;
 		case SDL_MOUSEBUTTONDOWN:
 		case SDL_MOUSEBUTTONUP:
 		{
 			/*SDL_MouseButtonEvent *bev = &ev->button;*/
 			sdl_send_mouse_event();
+            mouse_or_kbd = 1;
 		}
 		break;
 
@@ -249,21 +258,14 @@ sdl_set_bow_mode(char new_mode)
 void
 sdl_setup_display(void)
 {
-#if 0
-	SDL_Surface *logo;
-#endif
 	unsigned char *p = screen->pixels;
 	int i, j;
 
 	for (i = 0; i < video_width; i++) {
 		for (j = 0; j < video_height; j++)
-			*p++ = COLOR_WHITE;
+			*p++ = COLOR_BLACK;
 	}
 
-#if 0
-	logo = IMG_ReadXPMFromArray(logo_xpm);
-	SDL_BlitSurface(logo, NULL, screen, NULL);
-#else
 	{
 		char *p;
 		unsigned char *ps = screen->pixels;
@@ -276,7 +278,6 @@ sdl_setup_display(void)
 			ps += video_width;
 		}
 	}
-#endif
 
 	SDL_UpdateRect(screen, 0, 0, video_width, video_height);
 }
@@ -309,9 +310,7 @@ video_write(int offset, unsigned int bits)
 
 		for (i = 0; i < 32; i++)
 		{
-			ps[offset + i] =
-//				(bits & 1) ? COLOR_BLACK : COLOR_WHITE;
-				(bits & 1) ? COLOR_WHITE : COLOR_BLACK;
+			ps[offset + i] = (bits & 1) ? COLOR_WHITE : COLOR_BLACK;
 			if (video_bow_mode == 0)
 			  ps[offset + i] ^= ~0;
 			bits >>= 1;

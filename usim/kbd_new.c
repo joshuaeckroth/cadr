@@ -56,12 +56,13 @@ static int keypress_map[KEYPRESS_MAP_LEN][2] = {
   { SDLK_F6, LM_K_END },
   { SDLK_END, LM_K_END },
   { SDLK_F7, LM_K_CALL },
+  { SDLK_F8, LM_K_STATUS },
   { SDLK_BREAK, LM_K_BREAK },
   { SDLK_INSERT, LM_K_RESUME },
-  { SDLK_BACKSPACE, LM_K_OVERSTRIKE },
+  { SDLK_BACKSPACE, LM_K_RUBOUT },
   { SDLK_RETURN, LM_K_RETURN },
   { SDLK_TAB, LM_K_TAB },
-  { SDLK_DELETE, LM_K_RUBOUT },
+  { SDLK_DELETE, LM_K_OVERSTRIKE },
   { SDLK_ESCAPE, LM_K_TERMINAL },
   { SDLK_UP, LM_K_HAND_UP },
   { SDLK_DOWN, LM_K_HAND_DOWN },
@@ -217,7 +218,7 @@ int find_sdl_key_name(char *name) {
   return -1;
 }
 
-int find_lm_key_name(char *name, char is_shift) {
+int find_lm_key_name(char *name, unsigned char is_shift) {
   int i;
   for (i = 0; lm_key_names[i].lmkey_name != NULL; i++) {
     if ((strcasecmp(lm_key_names[i].lmkey_name,name) == 0)
@@ -227,7 +228,7 @@ int find_lm_key_name(char *name, char is_shift) {
   return -1;
 }
 
-char *find_lm_key_name_name(int num, char is_shift) {
+char *find_lm_key_name_name(int num, unsigned char is_shift) {
   int i;
   for (i = 0; lm_key_names[i].lmkey_name != NULL; i++) {
     if ((lm_key_names[i].lmkey_num == num)
@@ -535,8 +536,10 @@ void sdl_process_key(SDL_KeyboardEvent *ev, int keydown)
       lmcode = kb_new_table[lmkey][0];
       wantshift = kb_new_table[lmkey][1];
 #if KBD_DEBUG
-      printf("sdl_process_key(0%o, %d) => 0%o, %d (current shifts 0%o)\n",
-	     ev->keysym.sym, keydown, lmcode, wantshift, kbd_shifts);
+      printf("sdl_process_key(0x%x, 0%o, %d, keydown=%d) => 0%o, %d (current shifts 0%o), lm key name: %s\n",
+	     ev->keysym.sym, ev->keysym.sym, ev->keysym.sym,
+             keydown, lmcode, wantshift, kbd_shifts,
+             find_lm_key_name_name(lmkey, wantshift));
 #endif
       /* If modifiers correct, just post the event,
 	 else queue the event and post the appropriate shifts.
@@ -618,5 +621,7 @@ kbd_init()
 
 	read_kbd_config();
 
-	if (0) print_kbd_config();
+#ifdef KBD_DEBUG
+        print_kbd_config();
+#endif
 }

@@ -51,11 +51,9 @@ endif
 
 # Mac OSX
 ifeq ($(OS), OSX)
-LFLAGS = -framework Cocoa
+LFLAGS = -g -framework Cocoa
 USIM_LIBS = -lSDLmain -lSDL -lpthread -lobjc
-CFLAGS = -g -O $(DEFINES)
-# good for G5
-#CFLAGS = -fast $(DEFINES)
+CFLAGS = -g -O2 $(DEFINES) $(DEBUG)
 endif
 
 ifeq ($(DISPLAY), X11)
@@ -67,10 +65,10 @@ endif
 ifeq ($(OS), LINUX)
 #CFLAGS = -g
 #CFLAGS = -O -pg -g -fprofile-arcs
-#CFLAGS= -O3 -march=pentium3 -mfpmath=sse -mmmx -msse $(DEFINES) -Wall
-#CFLAGS = -O3 -fomit-frame-pointer -mcpu=i686 -g $(DEFINES)
-#CFLAGS= -O3 -mfpmath=sse -mmmx -msse $(DEFINES) -Wall
-CFLAGS = -O3 -mfpmath=sse -mmmx -msse $(DEFINES) -Wall $(M32) -g
+#CFLAGS= -O3 -march=pentium3 -mfpmath=sse -mmmx -msse $(DEFINES) $(DEBUG) -Wall
+#CFLAGS = -O3 -fomit-frame-pointer -mcpu=i686 -g $(DEFINES) $(DEBUG)
+#CFLAGS= -O3 -mfpmath=sse -mmmx -msse $(DEFINES) $(DEBUG) -Wall
+CFLAGS = -O3 -mfpmath=sse -mmmx -msse $(DEFINES) $(DEBUG) -Wall $(M32) -g
 LFLAGS = $(M32) -L/usr/lib
 endif
 
