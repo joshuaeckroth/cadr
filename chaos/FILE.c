@@ -1347,6 +1347,7 @@ fileopen(struct transaction *t)
 
 	if ((errcode = parsepath(pathname, &dirname, &realname, 0)) != 0)
 		goto openerr;
+
 	if (options & ~
 	    (O_RAW|O_READ|O_WRITE|O_PROBE|O_DEFAULT|O_PRESERVE|O_BINARY|O_CHARACTER|O_PROBEDIR)
 	    ) {
@@ -3706,10 +3707,13 @@ parsepath(char *path, char **dir, char **real, int blankok)
 		(void)free(cp);
 		return errcode;
 	}
+
 	*real = cp;
-jamlower(*real);
+    jamlower(*real);
+
 	if ((cp = rindex(cp, '/')) == NOSTR)
 		fatal("Parsepath");
+
 	if (cp == *real)
 		cp++;
 	save = *cp;
@@ -3739,7 +3743,7 @@ dcanon(char *cp, int blankok)
 		while(*++p == '/')	/* flush extra slashes */
 			;
 		if (p != ++sp)
-			strcpy(sp, p);
+          { int i = 0; for(; i < strlen(p); i++) { sp[i] = p[i]; } sp[i] = '\0'; }
 		p = sp;			/* save start of component */
 		if (*sp == '\0') { 	/* if component is null */
 			if (--sp != cp)	/* if path is not one char (i.e. /) */
@@ -3773,17 +3777,19 @@ dcanon(char *cp, int blankok)
 		}
 */
 		if (sp[0] == '.' && sp[1] == '\0') {
-			if (slash) {
-				strcpy(sp, ++p);
-				p = --sp;
-			}
+          if (slash) {
+            ++p;
+            { int i = 0; for(; i < strlen(p); i++) { sp[i] = p[i]; } sp[i] = '\0'; }
+            p = --sp;
+          }
 		} else if (sp[0] == '.' && sp[1] == '.' && sp[2] == '\0') {
 			if (--sp != cp)
 				while (*--sp != '/')
 					;
 			if (slash) {
-				strcpy(++sp, ++p);
-				p = --sp;
+              ++sp, ++p;
+              { int i = 0; for(; i < strlen(p); i++) { sp[i] = p[i]; } sp[i] = '\0'; }
+              p = --sp;
 			} else if (cp == sp)
 				*++sp = '\0';
 			else

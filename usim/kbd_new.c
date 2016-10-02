@@ -354,25 +354,25 @@ read_kbd_config() {
   if ((cf = fopen(KBD_CONFIG_FILE,"r")) != NULL) {
     if (fgets(buf, sizeof(buf), cf) != NULL)
       do {
-	i = strlen(buf);
-	if (buf[i-1] == '\n')
-	  buf[--i] = '\0';
-	if (buf[0] == '%' || buf[0] == ';')
-	  continue;
-	else if (strcasecmp(buf,"[ShiftKeys]") == 0) {
-	  read_kbd_shiftpress_config(cf,buf,sizeof(buf));
-	  continue;
-	} else if (strcasecmp(buf,"[Keys]") == 0) {
-	  read_kbd_keypress_config(cf,buf,sizeof(buf));
-	  continue;
-	} else if (strcasecmp(buf,"[ShiftMap]") == 0) {
-	  read_kbd_keyshift_config(cf,buf,sizeof(buf));
-	  continue;
-	} else {
-	  if (i > 0)
-	    fprintf(stderr,"Unknown keyboard config line: \"%s\"\n", buf);
-	  return;
-	}
+        i = strlen(buf);
+        if (buf[i-1] == '\n')
+          buf[--i] = '\0';
+        if (buf[0] == '%' || buf[0] == ';')
+          continue;
+        else if (strcasecmp(buf,"[ShiftKeys]") == 0) {
+          read_kbd_shiftpress_config(cf,buf,sizeof(buf));
+          continue;
+        } else if (strcasecmp(buf,"[Keys]") == 0) {
+          read_kbd_keypress_config(cf,buf,sizeof(buf));
+          continue;
+        } else if (strcasecmp(buf,"[ShiftMap]") == 0) {
+          read_kbd_keyshift_config(cf,buf,sizeof(buf));
+          continue;
+        } else {
+          if (i > 0)
+            fprintf(stderr,"Unknown keyboard config line: \"%s\"\n", buf);
+          return;
+        }
       } while (fgets(buf, sizeof(buf), cf) != NULL);
   }
 }

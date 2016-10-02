@@ -23,8 +23,8 @@
 #include "ucode.h"
 
 //#define STAT_PC_HISTORY
-#define STAT_ALU_USE
-#define STAT_PC_HISTOGRAM
+//#define STAT_ALU_USE
+//#define STAT_PC_HISTOGRAM
 //#define TRACE
 
 extern ucw_t prom_ucode[512];
