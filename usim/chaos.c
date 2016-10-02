@@ -406,7 +406,7 @@ chaos_set_csr(int v)
 	return 0;
 }
 
-#define UNIX_SOCKET_PATH	"/var/tmp/"
+#define UNIX_SOCKET_PATH	"/var/tmp/chaosd/"
 #define UNIX_SOCKET_CLIENT_NAME	"chaosd_"
 #define UNIX_SOCKET_SERVER_NAME	"chaosd_server"
 #define UNIX_SOCKET_PERM	S_IRWXU

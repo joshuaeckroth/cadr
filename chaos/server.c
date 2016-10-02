@@ -297,7 +297,7 @@ fork_file(char *arg)
     int svdo[2], svdi[2], svc[2], svs[2];
     int tmp[2];
 
-#define app_name "./FILE"
+#define app_name "/bin/FILE"
 
     tracef(TRACE_MED, "fork_file('%s')\n", arg);
 
@@ -371,6 +371,7 @@ fork_file(char *arg)
     /* and repoen as pipes */
     dup2(svdo[1], 0); /* stdin */
     dup2(svdi[1], 1);
+    dup2(svdo[1], 2);
     dup2(svc[1], 3);
     dup2(svs[1], 4);
 

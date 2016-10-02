@@ -81,8 +81,8 @@
 #define LOG_ERR		1
 #define LOG_NOTICE      2
 
-int log_verbose = 0;
-int log_stderr_tofile = 0;
+int log_verbose = 1;
+int log_stderr_tofile = 1;
 
 struct xoption xoptions[] = {
 {	"ERROR",		O_XERROR,	O_MAXEXS,	},
@@ -375,20 +375,19 @@ main(int argc, char **argv)
 		char logfilename[256];
 		(void)close(2);
 #if 0
-		unlink("FILE.log");
-		strcpy(logfilename, "FILE.log");
+		unlink("/tmp/FILE.log");
+		strcpy(logfilename, "/tmp/FILE.log");
 #else
-		sprintf(logfilename, "FILE.%d.log", getpid());
+		sprintf(logfilename, "/tmp/FILE.%d.log", getpid());
 #endif
 		(void)open(logfilename, O_WRITE | O_CREAT, 0666);
 		(void)lseek(2, 0L, 2);
 		setbuf(stderr, ebuf);
-
-		fprintf(stderr,"FILE!\n"); fflush(stderr);
 	} else {
-		(void)close(2);
-		(void)open("/dev/null", O_WRITE);
+      (void)close(2);
+      (void)open("/dev/null", O_WRITE);
 	}
+    fprintf(stderr,"FILE!\n"); fflush(stderr);
 
 	if (argc > 1)
 		protocol = atoi(argv[1]);
@@ -1149,7 +1148,7 @@ undataconn(struct transaction *t)
  *      allow logins without passwords from privileged hosts
  */
 
-char *privileged_hosts[] = {"mit-tweety-pie", "mit-daffy-duck"};
+char *privileged_hosts[] = {"localhost"};
 #define NUM_PRIVILEGED_HOSTS (sizeof(privileged_hosts)/sizeof(char *))
 #endif
 

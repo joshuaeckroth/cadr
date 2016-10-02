@@ -24,6 +24,8 @@ DISPLAY = SDL
 #KEYBOARD = OLD
 KEYBOARD = NEW
 
+DEBUG = -DKBD_DEBUG
+
 #----------- code ------------
 
 USIM_SRC = main.c decode.c ucode.c disk.c iob.c chaos.c syms.c config.c

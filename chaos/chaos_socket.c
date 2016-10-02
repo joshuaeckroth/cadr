@@ -14,9 +14,9 @@
 
 /* 
  * Essentially, there are two sockets involved
- * /var/tmp/chaosd_server for the central server that echoes packets
+ * /var/tmp/chaosd/chaosd_server for the central server that echoes packets
  * to all the clients, and
- * /var/tmp/chaosd_<PID> for each client
+ * /var/tmp/chaosd/chaosd_<PID> for each client
  *
  * Previously, this code was duplicated in each client, and seemed to
  * have a subtle problem that caused it not to work under Mac OS X. 
